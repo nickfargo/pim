@@ -3,6 +3,37 @@
 Fast persistent immutable data structures.
 
 
+#### Installation
+
+Get it via **[npm](https://www.npmjs.org/)**:
+
+```sh
+$ npm install pim
+```
+
+and use it in **Node** or any other CommonJS environment:
+
+```js
+var pim = require('pim');
+var HashMap = pim.HashMap;
+```
+
+Or clone the repository, install its `devDependencies`, and run the test suite:
+
+```sh
+$ git clone git@github.com:nickfargo/pim.git
+$ cd pim
+$ npm install
+$ npm test
+```
+
+Optionally create standalone `pim.js` and `pim.min.js` files for use in the browser:
+
+```sh
+$ npm run build
+$ ls bundles
+```
+
 
 ### Features
 

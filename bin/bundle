@@ -5,6 +5,7 @@ coffee -o test/lib/ -c test/src/
 
 mocha --colors --recursive -R progress || exit
 
+mkdir -p bundles
 browserify -e ./ -s pim > bundles/pim.js
 uglifyjs bundles/pim.js -m > bundles/pim.min.js
 
