@@ -1,0 +1,38 @@
+{
+  "name": "pim",
+  "version": "0.0.0",
+  "description": "Fast persistent immutable data structures",
+  "keywords": [
+    "persistent",
+    "immutable",
+    "hash map"
+  ],
+  "author": "Nick Fargo",
+  "repository": {
+    "type": "git",
+    "url": "git://github.com/nickfargo/pim.git"
+  },
+  "licenses": [
+    {
+      "type": "MIT",
+      "url": "https://raw.github.com/nickfargo/pim/master/LICENSE"
+    }
+  ],
+  "main": "lib/index",
+  "directories": {
+    "test": "test"
+  },
+  "scripts": {
+    "test": "bin/test",
+    "build": "bin/bundle",
+    "prepublish": "npm run build"
+  },
+  "dependencies": {
+  },
+  "devDependencies": {
+    "coffee-script": "~1.7.0",
+    "mocha": "*",
+    "chai": ">=1.5.0",
+    "memwatch": "*"
+  }
+}

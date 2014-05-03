@@ -1,0 +1,4 @@
+bundles/
+src/
+test/
+*.coffee.md
