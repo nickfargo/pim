@@ -248,7 +248,7 @@ Finished.
 
 
 
-#### Class functions
+### Class functions
 
 
 #### create
