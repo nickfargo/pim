@@ -50,6 +50,43 @@
 
 
 
+### Optimizing entities
+
+
+#### Cached stores
+
+      __ablate_cached__sourcePath     = []
+      __ablate_cached__targetPath     = []
+      __ablate_cached__targetIndices  = []
+
+
+#### Inline functions
+
+##### `__ablate_inline__replicatePath`
+
+Replicates any `Node`s in `sourcePath` that are identity-equal to those in the
+`target` `path`.
+
+Returns the `Node` in tail position of `path`, or its corresponding replicant.
+
+      __ablate_inline__replicatePath = ( target, path, indices, sourcePath ) ->
+        node = target.root
+
+        i = 0; while i < path.length
+          parentTable  = node.table
+          parentIndex  = indices[i]
+          node         = path[i]
+          sourceNode   = sourcePath[i]
+
+          if node is sourceNode
+            node = sourceNode.copy()
+            parentTable[ parentIndex + 1 ] = node
+          i++
+
+        node
+
+
+
 ### Private functions
 
 
@@ -244,6 +281,190 @@ Finished.
         target
 
 
+#### ablate
+
+Returns a new or provided `target` `HashMap` that shares structure with the
+provided `source` `HashMap`, but excludes the pairs from `source` whose keys
+match the `key`s provided by the `iterable` sequence.
+
+      ablate = ( source, iterable, target = new HashMap source ) ->
+        return target unless source?.size
+
+        sourcePath     = __ablate_cached__sourcePath
+        targetPath     = __ablate_cached__targetPath
+        targetIndices  = __ablate_cached__targetIndices
+
+        size      = target.size
+        iterator  = iteratorOf iterable
+
+The outer **iterator loop** processes each iterant `key` whose corresponding
+key-value pair is to be excluded from `target`.
+
+        loop
+          { done, value:key } = iterator.next()
+          break if done
+
+          sourcePath.length     = 0
+          targetPath.length     = 0
+          targetIndices.length  = 0
+
+          sourceBitmap  = source.bitmap
+          sourceNode    = source.root
+          targetBitmap  = target.bitmap
+          targetNode    = target.root
+          hash          = hashOf key
+          bitshift      = 0
+
+The inner **descent loop** traces the path of the `key`, then
+rewrite `Node`s as necessary so as to exclude the iterant key-value pair from
+`target`.
+
+          loop
+            throw new Error "bitshift overflow" if bitshift > 30
+
+            hashSegment   = hash >>> bitshift & 31
+            slotIndexBit  = 1 << hashSegment
+
+            break if ( targetBitmap & slotIndexBit ) is 0
+
+            targetParentTable = targetTable
+            targetParentIndex = targetIndex
+
+            targetTable  = targetNode.table
+            targetIndex  = tableIndexFrom hashSegment, targetBitmap
+            targetKey    = targetTable[ targetIndex ]
+            targetValue  = targetTable[ targetIndex + 1 ]
+
+            targetIndices.push targetIndex
+
+* **Node** — Trace the path of the iterant `key` in both the `source` and
+`target` tries. These paths will be used later, once a terminal `Collision` or
+key-value pair is encountered.
+
+            if targetValue instanceof Node
+              if sourceNode?
+                sourceTable  = sourceNode.table
+                sourceIndex  = tableIndexFrom hashSegment, sourceBitmap
+                sourceKey    = sourceTable[ sourceIndex ]
+                sourceValue  = sourceTable[ sourceIndex + 1 ]
+
+                if sourceValue instanceof Node
+                  sourceBitmap  = sourceKey
+                  sourceNode    = sourceValue
+                  sourcePath.push sourceNode
+                else
+                  sourceNode = null
+
+              bitshift     += 5
+              targetBitmap  = targetKey
+              targetNode    = targetValue
+              targetPath.push targetNode
+
+* **Collision** — exclude the iterant pair from the collision list, or remove
+the collision list if necessary.
+
+            else if targetValue instanceof Collision
+              collision       = targetValue
+              collisionTable  = collision.table
+
+              targetNode = __ablate_inline__replicatePath \
+                target, targetPath, targetIndices, sourcePath
+
+              targetParentTable = targetNode.table
+              targetParentIndex = targetIndices[ targetPath.length ]
+
+If the collision list contains two pairs, one of which is the iterant pair,
+then, in the parent `Node`, replace the collision list with the other pair.
+
+              if collisionTable.length is 4
+                remainingIndex  = if collision.indexOf key then 2 else 0
+                remainingKey    = collisionTable[ remainingIndex ]
+                remainingValue  = collisionTable[ remainingIndex + 1 ]
+
+                targetParentTable[ targetParentIndex ]      = remainingKey
+                targetParentTable[ targetParentIndex + 1 ]  = remainingValue
+
+                size--
+
+Otherwise, replicate the collision list from `source` if necessary, and remove
+the iterant pair.
+
+              else
+                if sourceNode?
+                  sourceTable = sourceNode.table
+                  sourceIndex = tableIndexFrom hashSegment, sourceBitmap
+                  sourceValue = sourceTable[ sourceIndex + 1 ]
+
+                  if sourceValue is collision
+                    collision = collision.copy()
+                    targetParentTable[ targetParentIndex + 1 ] = collision
+
+                size -= collision.remove key
+
+              break
+
+* **Pair** — remove the pair in `target`, and reshape the trie if necessary.
+
+            else
+              if targetTable.length % 2 or targetTable.length < 4
+                throw new Error "ablate: bad table"
+
+If a `Node` contains two slots, where one slot holds the iterant pair to be
+removed and the other slot holds either a pair or a `Collision` that is to
+remain, then **lift** the remaining slot into the `Node`’s parent to displace
+the `Node`. Continue lifting as necessary to successively higher parent `Node`s
+or until the root `Node` is reached.
+
+After superfluous `Node`s are thusly eliminated, copy `Node`s from `source` to
+`target` as necessary, and finally situate the lifted remainder into place
+within its proper containing `Node`.
+
+              if targetTable.length is 4
+                remainingIndex  = if targetIndex then 2 else 0
+                remainingKey    = targetTable[ remainingIndex ]
+                remainingValue  = targetTable[ remainingIndex + 1 ]
+
+                unless remainingValue instanceof Node
+                  while targetNode = targetPath.pop()
+                    if targetNode.table.length isnt 2
+                      targetPath.push targetNode
+                      break
+
+                targetNode = __ablate_inline__replicatePath \
+                  target, targetPath, targetIndices, sourcePath
+
+                targetParentTable = targetNode.table
+                targetParentIndex = targetIndices[ targetPath.length ]
+
+                targetParentTable[ targetParentIndex ]      = remainingKey
+                targetParentTable[ targetParentIndex + 1 ]  = remainingValue
+
+If no `Node`s would be rendered superfluous by the removal, just copy `Node`s
+from `source` to `target` as necessary, and remove the iterant pair from the
+table of its containing `Node`.
+
+              else
+                targetNode = __ablate_inline__replicatePath \
+                  target, targetPath, targetIndices, sourcePath
+
+                targetBitmap &= ~slotIndexBit
+
+                if bitshift is 0
+                then target.bitmap = targetBitmap
+                else targetParentTable[ targetParentIndex ] = targetBitmap
+
+                targetNode.table.splice targetIndices[ targetPath.length ], 2
+
+              size--
+              break
+
+Finished.
+
+        target.size = size
+        target
+
+
+
 
 ### Class functions
 
@@ -334,6 +555,19 @@ array-like, or argument list whose elements are alternating keys and values.
           accrete this, arguments
         else
           accrete this, iterable
+
+
+#### dissociate
+
+Returns a new `HashMap` that contains the key-value pairs of `this`, minus any
+key-value pairs to be removed. Pairs are identified by their `key`s, provided
+as an `iterable` sequence.
+
+      dissociate: ( iterable ) ->
+        if arguments.length > 1
+          ablate this, arguments
+        else
+          ablate this, iterable
 
 
 #### equals
