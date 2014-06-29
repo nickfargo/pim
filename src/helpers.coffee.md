@@ -1,3 +1,10 @@
+    {
+      ArrayIterator
+      PairwiseArrayIterator
+    } =
+      require './array-iterators'
+
+
     _uid = 0
 
     uid = -> ++_uid|0
@@ -39,6 +46,18 @@
         "\"#{obj}\""
       else
         obj
+
+    iteratorOf = ( iterable ) ->
+      iterable?() or
+      iterable.__iterator__?() or
+      ( iterable if typeof iterable.next is 'function' ) or
+      new ArrayIterator iterable
+
+    pairwiseIteratorOf = ( iterable ) ->
+      iterable?() or
+      iterable.__iterator__?() or
+      ( iterable if typeof iterable.next is 'function' ) or
+      new PairwiseArrayIterator iterable
 
     base32 = (n) -> ( n >>> 0 ).toString 32
 
@@ -89,6 +108,8 @@
       populationOf
       typeOf
       valueOf
+      iteratorOf
+      pairwiseIteratorOf
       bin32p
       hex32p
       base32

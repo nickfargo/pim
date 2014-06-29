@@ -2,8 +2,6 @@
     Collision      = require './hash-map-collision'
     Iterator       = require './hash-map-iterator'
 
-    PairwiseArrayIterator = require './pairwise-array-iterator'
-
 
     {
       uid
@@ -11,6 +9,8 @@
       populationOf
       typeOf
       valueOf
+      iteratorOf
+      pairwiseIteratorOf
       base32
       base32p
       bin32p
@@ -96,10 +96,7 @@ other `HashMap` previously `associate`d with `source`, lives on independently.
       accrete = ( source, iterable, target = new HashMap source ) ->
         size      = target.size
         source    = null unless source?.size > 0
-        iterator  = iterable?() or
-                    iterable.__iterator__?() or
-                    ( iterable if typeof iterable.next is 'function' ) or
-                    new PairwiseArrayIterator iterable
+        iterator  = pairwiseIteratorOf iterable
 
 The outer **iterator loop** processes each of the iterant key-value pairs to be
 associated with `this` `HashMap`.
