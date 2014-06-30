@@ -621,9 +621,9 @@ Returns an array containing the keys of `this`.
 
       keysArray: ->
         result = []; iterator = @__iterator__(); loop
-          { done, value:[ key ] } = iterator.next()
+          { done, value:pair } = iterator.next()
           break if done
-          result.push key
+          result.push pair[0]
         result
 
 
@@ -633,9 +633,9 @@ Returns an array containing the values of `this`.
 
       valuesArray: ->
         result = []; iterator = @__iterator__(); loop
-          { done, value:[ value ] } = iterator.next()
+          { done, value:pair } = iterator.next()
           break if done
-          result.push value
+          result.push pair[1]
         result
 
 
