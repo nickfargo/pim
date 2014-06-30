@@ -312,6 +312,8 @@ key-value pair is to be excluded from `target`.
           sourceNode    = source.root
           targetBitmap  = target.bitmap
           targetNode    = target.root
+          targetTable   = null
+          targetIndex   = undefined
           hash          = hashOf key
           bitshift      = 0
 
@@ -377,7 +379,7 @@ If the collision list contains two pairs, one of which is the iterant pair,
 then, in the parent `Node`, replace the collision list with the other pair.
 
               if collisionTable.length is 4
-                remainingIndex  = if collision.indexOf key then 2 else 0
+                remainingIndex  = if collision.indexOf key then 0 else 2
                 remainingKey    = collisionTable[ remainingIndex ]
                 remainingValue  = collisionTable[ remainingIndex + 1 ]
 
@@ -419,8 +421,8 @@ After superfluous `Node`s are thusly eliminated, copy `Node`s from `source` to
 `target` as necessary, and finally situate the lifted remainder into place
 within its proper containing `Node`.
 
-              if targetTable.length is 4
-                remainingIndex  = if targetIndex then 2 else 0
+              if bitshift > 0 and targetTable.length is 4
+                remainingIndex  = if targetIndex then 0 else 2
                 remainingKey    = targetTable[ remainingIndex ]
                 remainingValue  = targetTable[ remainingIndex + 1 ]
 
@@ -432,9 +434,6 @@ within its proper containing `Node`.
 
                 targetNode = __ablate_inline__replicatePath \
                   target, targetPath, targetIndices, sourcePath
-
-                targetParentTable = targetNode.table
-                targetParentIndex = targetIndices[ targetPath.length ]
 
                 targetParentTable[ targetParentIndex ]      = remainingKey
                 targetParentTable[ targetParentIndex + 1 ]  = remainingValue
