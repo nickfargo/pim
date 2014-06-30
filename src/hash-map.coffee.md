@@ -744,6 +744,6 @@ should be invariant with the value of `this.size`.
           "Collision (##{ base32p hash }) { #{ pairs.join ', ' } }\n"
 
         printPair = ( key, value ) ->
-          "Pair (##{ base32p key.__hash__ }) <#{ valueOf key }, #{ valueOf value }>\n"
+          "Pair (##{ base32p hashOf key }) <#{ valueOf key }, #{ valueOf value }>\n"
 
         -> printNode @bitmap, @root
