@@ -80,7 +80,7 @@ Returns the `Node` in tail position of `path`, or its corresponding replicant.
 
           if node is sourceNode
             node = sourceNode.copy()
-            parentTable[ parentIndex + 1 ] = node
+            parentTable[ parentIndex + 1 ] = path[i] = node
           i++
 
         node
@@ -408,8 +408,11 @@ the iterant pair.
 * **Pair** — remove the pair in `target`, and reshape the trie if necessary.
 
             else
-              if targetTable.length % 2 or targetTable.length < 4
-                throw new Error "ablate: bad table"
+              if targetTable.length % 2
+                throw new Error "ablate: bad table: odd length"
+
+              if bitshift > 0 and targetTable.length < 4
+                throw new Error "ablate: bad table: superfluous node"
 
 If a `Node` contains two slots, where one slot holds the iterant pair to be
 removed and the other slot holds either a pair or a `Collision` that is to
@@ -421,22 +424,32 @@ After superfluous `Node`s are thusly eliminated, copy `Node`s from `source` to
 `target` as necessary, and finally situate the lifted remainder into place
 within its proper containing `Node`.
 
-              if bitshift > 0 and targetTable.length is 4
+              if bitshift > 0 and targetTable.length is 4 and not (
                 remainingIndex  = if targetIndex then 0 else 2
                 remainingKey    = targetTable[ remainingIndex ]
                 remainingValue  = targetTable[ remainingIndex + 1 ]
-
-                unless remainingValue instanceof Node
-                  while targetNode = targetPath.pop()
-                    if targetNode.table.length isnt 2
-                      targetPath.push targetNode
-                      break
+                remainingValue instanceof Node
+              )
+                targetPath.pop()
+                while targetNode = targetPath.pop()
+                  if targetNode.table.length isnt 2
+                    targetPath.push targetNode
+                    break
 
                 targetNode = __ablate_inline__replicatePath \
                   target, targetPath, targetIndices, sourcePath
+                targetNodeDepth = targetPath.length
+                targetParentTable =
+                  if targetNodeDepth is 0
+                  then target.root.table
+                  else targetPath[ targetNodeDepth - 1 ].table
+                targetParentIndex = targetIndices[ targetNodeDepth ]
 
                 targetParentTable[ targetParentIndex ]      = remainingKey
                 targetParentTable[ targetParentIndex + 1 ]  = remainingValue
+
+                # errors = target.checkIntegrity()
+                # debugger if errors.length
 
 If no `Node`s would be rendered superfluous by the removal, just copy `Node`s
 from `source` to `target` as necessary, and remove the iterant pair from the
@@ -445,14 +458,27 @@ table of its containing `Node`.
               else
                 targetNode = __ablate_inline__replicatePath \
                   target, targetPath, targetIndices, sourcePath
-
+                targetNodeDepth = targetPath.length
                 targetBitmap &= ~slotIndexBit
 
                 if bitshift is 0
-                then target.bitmap = targetBitmap
-                else targetParentTable[ targetParentIndex ] = targetBitmap
+                  target.bitmap = targetBitmap
+                else
+                  targetParentTable =
+                    if bitshift is 5
+                    then target.root.table
+                    else targetPath[ targetNodeDepth - 2 ].table
+                  targetParentIndex = targetIndices[ targetNodeDepth - 1 ]
 
-                targetNode.table.splice targetIndices[ targetPath.length ], 2
+                  targetParentTable[ targetParentIndex ] = targetBitmap
+
+                targetNode.table.splice targetIndices[ targetNodeDepth ], 2
+
+                # errors = target.checkIntegrity()
+                # debugger if errors.length
+
+                if targetNode.table.length isnt 2 * populationOf targetBitmap
+                  throw new Error "invalid bitmap: #{targetBitmap}"
 
               size--
               break
