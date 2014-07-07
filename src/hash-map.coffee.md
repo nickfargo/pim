@@ -747,3 +747,45 @@ should be invariant with the value of `this.size`.
           "Pair (##{ base32p hashOf key }) <#{ valueOf key }, #{ valueOf value }>\n"
 
         -> printNode @bitmap, @root
+
+
+#### checkIntegrity
+
+      checkIntegrity: do ->
+
+        checkNode = ( out, bitmap, node, bitshift = 0, address = 0 ) ->
+          { table }  = node
+          mask       = ~( -1 << 5 + bitshift )
+
+          if table.length % 2
+            out.push { '' : "Bad table", bitmap, node, bitshift }
+
+          else if bitshift > 0 and table.length < 4 and not (
+            key    = table[0]
+            value  = table[1]
+            value instanceof Node
+          )
+            out.push { '' : "Bad node", bitmap, node, bitshift, key, value }
+
+          slotIndex = 0; while slotIndex < 32
+            if ( index = tableIndexFrom slotIndex, bitmap )?
+              key          = table[ index ]
+              value        = table[ index + 1 ]
+              slotAddress  = slotIndex << bitshift | address
+              if value instanceof Node
+                checkNode out, key, value, bitshift + 5, slotAddress
+              else
+                hash = if value instanceof Collision then key else hashOf key
+                if mask & ( slotAddress ^ hash ) then out.push {
+                  ''          : "Bad terminal"
+                  bitshift
+                  slotIndex
+                  slotAddress : "##{ base32p slotAddress }"
+                  hash        : "##{ base32p hash }"
+                  key         : "#{ valueOf key }"
+                  value       : "#{ valueOf value }"
+                }
+            slotIndex++
+          out
+
+        checkIntegrity = -> checkNode [], @bitmap, @root
